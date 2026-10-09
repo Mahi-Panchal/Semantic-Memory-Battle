@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Semantic Memory Battle — WordMind</title>
+  <meta name="description"
+    content="A real-time NLP word association game powered by in-browser transformer embeddings. Say a word related to the last one. Don't repeat, don't run out of time.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- =========================================================
+     HEADER
+     ========================================================= -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <svg class="brand-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" aria-hidden="true">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
+          <path d="M12 6v6l4 2" />
+        </svg>
+        <span class="brand-name">Semantic Memory Battle</span>
+      </div>
+
+      <div class="header-actions">
+        <!-- Status pill — only model status indicator on the page -->
+        <button id="status-pill" class="status-pill" data-state="loading" aria-live="polite"
+          aria-label="Model status: Loading model…" title="Click to open Settings / NLP Lab">
+          <span class="pill-icon" aria-hidden="true"></span>
+          <span class="pill-text">Loading model…</span>
+        </button>
+
+        <!-- Sound toggle — two SVGs swapped via [aria-pressed] CSS -->
+        <button id="sound-btn" class="icon-btn" aria-label="Toggle sound" aria-pressed="true" title="Sound on">
+          <!-- Speaker ON (shown when aria-pressed="true") -->
+          <svg class="sound-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" aria-hidden="true">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+          </svg>
+          <!-- Speaker OFF / muted (shown when aria-pressed="false") -->
+          <svg class="sound-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" aria-hidden="true">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <line x1="23" y1="9" x2="17" y2="15" />
+            <line x1="17" y1="9" x2="23" y2="15" />
+          </svg>
+        </button>
+
+        <!-- Settings gear -->
+        <button id="settings-btn" class="icon-btn" aria-label="Open settings" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            aria-hidden="true">
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
+
+        <!-- Help -->
+        <button id="help-btn" class="icon-btn" aria-label="Help and rules" title="Help">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========================================================
+     SCREEN: START / LOBBY
+     ========================================================= -->
+  <main>
+    <section id="start-screen" class="screen">
+      <div class="lobby-layout">
+        <!-- Left column: configuration -->
+        <div class="lobby-config card">
+          <h1 class="page-title">Semantic Memory Battle</h1>
+          <p class="page-subtitle">Say a word related to the last one. Don't repeat, don't run out of time.</p>
+
+          <!-- Inline model error message (only visible if model fails) -->
+          <p id="model-error-msg" class="model-error hidden"></p>
+
+          <!-- Starting word -->
+          <div class="form-group">
+            <label class="form-label" for="start-word-input">Starting word</label>
+            <div class="input-row">
+              <input type="text" id="start-word-input" class="word-input-field uppercase" placeholder="OCEAN"
+                maxlength="20" autocomplete="off" spellcheck="false" aria-label="Starting word">
+              <button type="button" id="random-word-btn" class="secondary-btn" aria-label="Pick random starting word">
+                Random
+              </button>
+            </div>
+          </div>
+
+          <!-- Opponents -->
+          <div class="form-group">
+            <label class="form-label">Opponents</label>
+            <div id="opp-count-group" class="toggle-group" role="group" aria-label="Number of AI opponents">
+              <button type="button" class="toggle-btn active" data-val="1" aria-pressed="true">1 AI</button>
+              <button type="button" class="toggle-btn" data-val="2" aria-pressed="false">2 AI</button>
+              <button type="button" class="toggle-btn" data-val="3" aria-pressed="false">3 AI</button>
+            </div>
+          </div>
+
+          <!-- Difficulty -->
+          <div class="form-group">
+            <label class="form-label">Difficulty</label>
+            <div id="difficulty-group" class="toggle-group" role="group" aria-label="Difficulty level">
+              <button type="button" class="toggle-btn" data-val="Easy" aria-pressed="false">Easy</button>
+              <button type="button" class="toggle-btn active" data-val="Normal" aria-pressed="true">Normal</button>
+              <button type="button" class="toggle-btn" data-val="Hard" aria-pressed="false">Hard</button>
+              <button type="button" class="toggle-btn" data-val="Custom" id="lobby-custom-btn" aria-pressed="false">Custom (<span id="lobby-custom-val">0.42</span>)</button>
+            </div>
+            <p class="field-hint" id="diff-hint">Easy ≥ 0.35 · Normal ≥ 0.42 · Hard ≥ 0.50 cosine similarity</p>
+          </div>
+
+          <button id="start-btn" class="primary-btn" disabled aria-label="Start game">
+            Start Game
+          </button>
+        </div>
+
+        <!-- Right column: player roster preview -->
+        <div class="lobby-roster-card card">
+          <h2 class="card-title">Players</h2>
+          <p class="card-hint">You vs AI</p>
+          <div id="lobby-roster" class="lobby-roster-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+     SCREEN: BATTLE ARENA
+     ========================================================= -->
+    <section id="battle-screen" class="screen hidden">
+      <!-- Compact top bar -->
+      <div class="battle-topbar">
+        <div class="battle-meta">
+          <span id="battle-round" class="battle-round">Round 1</span>
+          <span id="chain-count" class="chain-count-badge">1</span>
+        </div>
+        <button id="restart-btn" class="ghost-btn" aria-label="End game and return to menu">End game</button>
+      </div>
+
+      <!-- CURRENT WORD — largest element -->
+      <div class="current-word-box">
+        <span class="current-word-label">Current word</span>
+        <div id="battle-word" class="current-word" aria-live="polite">OCEAN</div>
+      </div>
+
+      <!-- Turn bar + Timer -->
+      <div class="turn-timer-row">
+        <span id="turn-bar" class="turn-bar" aria-live="polite">Waiting…</span>
+        <div class="timer-wrap">
+          <svg class="timer-svg" width="48" height="48" viewBox="0 0 48 48" aria-hidden="true">
+            <circle class="timer-bg" cx="24" cy="24" r="22" />
+            <circle id="timer-ring" class="timer-ring" cx="24" cy="24" r="22" />
+          </svg>
+          <span id="timer-text" class="timer-text">15s</span>
+        </div>
+      </div>
+
+      <!-- Main arena grid: input area + sidebar -->
+      <div class="arena-grid">
+        <!-- Left: input + judge + chain -->
+        <div class="arena-main">
+          <!-- Human input panel -->
+          <div id="human-panel" class="human-panel hidden">
+            <div class="input-wrap">
+              <input type="text" id="word-input" class="word-input-field uppercase large-input"
+                placeholder="Type a related word…" maxlength="25" autocomplete="off" spellcheck="false"
+                aria-label="Submit a word" disabled>
+              <button id="submit-btn" class="primary-btn submit-btn" disabled aria-label="Submit word">Submit</button>
+            </div>
+            <p id="input-error" class="input-error hidden" role="alert" aria-live="assertive"></p>
+            <!-- Live similarity preview -->
+            <div id="live-preview" class="live-preview" aria-live="polite"></div>
+            <!-- Hint -->
+            <button id="hint-btn" class="ghost-btn hint-btn" aria-label="Get a hint (one per game)">Use hint</button>
+          </div>
+
+          <!-- AI thinking panel -->
+          <div id="ai-panel" class="ai-panel hidden">
+            <span id="ai-name" class="ai-name">Nova-7 is thinking…</span>
+            <span class="ai-dots" aria-hidden="true">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            </span>
+          </div>
+
+          <!-- Judge card (compact, P5) -->
+          <div id="judge-card" class="judge-card card">
+            <div class="judge-row">
+              <span class="judge-prev judge-word">—</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                aria-hidden="true">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+              <span class="judge-sub judge-word">—</span>
+            </div>
+            <div class="judge-bar-track">
+              <div class="judge-bar-fill" style="width:0%"></div>
+              <div class="judge-threshold-marker" id="judge-threshold-marker"></div>
+            </div>
+            <div class="judge-bottom">
+              <span class="judge-score">—</span>
+              <span class="verdict-pill" aria-live="polite">Awaiting</span>
+            </div>
+          </div>
+
+          <!-- Miss suggestions (shown after failed attempt) -->
+          <div id="miss-suggestions" class="miss-suggestions hidden">
+            <p class="miss-header">Words that would have worked for <strong id="miss-word"></strong>:</p>
+            <div id="miss-list" class="miss-list"></div>
+          </div>
+
+          <!-- Word chain (horizontal chips) -->
+          <div class="chain-section">
+            <span class="section-label">Chain</span>
+            <div id="chain-display" class="chain-display"></div>
+          </div>
+        </div>
+
+        <!-- Right: Players sidebar -->
+        <aside class="arena-sidebar">
+          <div class="sidebar-header">
+            <span class="section-label">Players</span>
+            <span id="alive-count" class="alive-badge">2 alive</span>
+          </div>
+          <div id="players-sidebar" class="players-sidebar"></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- =========================================================
+     MODAL: GAME OVER
+     ========================================================= -->
+    <div id="gameover-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+      aria-labelledby="result-headline">
+      <div class="modal-card result-card">
+        <h2 id="result-headline" class="result-headline">Game Over</h2>
+        <p id="result-msg" class="result-msg"></p>
+
+        <div class="stats-grid">
+          <div class="stat-box"><span id="stat-rounds" class="stat-num">—</span><span class="stat-lbl">Rounds</span>
+          </div>
+          <div class="stat-box"><span id="stat-words" class="stat-num">—</span><span class="stat-lbl">Chain
+              length</span></div>
+          <div class="stat-box"><span id="stat-human-words" class="stat-num">—</span><span class="stat-lbl">Your
+              words</span></div>
+          <div class="stat-box"><span id="stat-avg-sim" class="stat-num">—</span><span class="stat-lbl">Avg
+              similarity</span></div>
+          <div class="stat-box"><span id="stat-peak-sim" class="stat-num">—</span><span class="stat-lbl">Peak
+              similarity</span></div>
+          <div class="stat-box"><span id="stat-drift" class="stat-num">—</span><span class="stat-lbl">Semantic
+              drift</span></div>
+        </div>
+
+        <!-- Elimination timeline -->
+        <h3 class="section-label" style="margin-bottom:0.5rem">Eliminations</h3>
+        <div id="elim-timeline" class="elim-timeline"></div>
+
+        <!-- Final word chain -->
+        <h3 class="section-label" style="margin-bottom:0.5rem">Word chain</h3>
+        <div id="final-chain" class="final-chain"></div>
+
+        <!-- PCA plot -->
+        <h3 class="section-label" style="margin-bottom:0.5rem">Embedding space (PCA)</h3>
+        <canvas id="pca-canvas" class="pca-canvas" width="400" height="260"
+          aria-label="2D PCA scatter plot of word chain embeddings"></canvas>
+
+        <div class="result-actions">
+          <button id="again-btn" class="primary-btn">Play again</button>
+          <button id="menu-btn" class="secondary-btn">Back to menu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+     MODAL: SETTINGS (two-tab: Game + NLP Lab)
+     ========================================================= -->
+    <div id="settings-modal" class="modal-overlay hidden" role="dialog" aria-modal="true"
+      aria-labelledby="settings-title">
+      <div class="modal-card settings-card">
+        <div class="modal-header">
+          <h2 id="settings-title" class="modal-title">Settings</h2>
+          <button class="icon-btn" id="settings-done-btn" aria-label="Close settings">Done</button>
+        </div>
+
+        <!-- Tab bar -->
+        <div class="tab-bar" role="tablist">
+          <button class="tab-btn tab-active" data-tab="game" role="tab" aria-selected="true">Game</button>
+          <button class="tab-btn" data-tab="nlp" role="tab" aria-selected="false">NLP Lab</button>
+        </div>
+
+        <!-- TAB 1: Game -->
+        <div id="tab-game" class="tab-pane">
+          <p class="tab-hint" id="game-in-progress-note" style="display:none">
+            Settings apply to the next game.
+          </p>
+
+          <div class="settings-group">
+            <label class="form-label">Turn timer</label>
+            <div id="settings-timer-group" class="toggle-group">
+              <button type="button" class="toggle-btn" data-val="10">10s</button>
+              <button type="button" class="toggle-btn active" data-val="15">15s</button>
+              <button type="button" class="toggle-btn" data-val="20">20s</button>
+              <button type="button" class="toggle-btn" data-val="30">30s</button>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <label class="form-label">Lives per player</label>
+            <div id="settings-lives-group" class="toggle-group">
+              <button type="button" class="toggle-btn" data-val="1">1</button>
+              <button type="button" class="toggle-btn active" data-val="2">2</button>
+              <button type="button" class="toggle-btn" data-val="3">3</button>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <label class="toggle-label">
+              <input type="checkbox" id="setting-preview" checked>
+              Live similarity preview while typing
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" id="setting-sound" checked>
+              Sound effects
+            </label>
+            <label class="toggle-label">
+              <input type="checkbox" id="setting-motion">
+              Reduce motion
+            </label>
+          </div>
+
+          <!-- Advanced: collapsed -->
+          <details class="settings-advanced">
+            <summary class="form-label" style="cursor:pointer">Advanced</summary>
+            <div class="settings-group" style="margin-top:0.75rem">
+              <label class="form-label" for="custom-threshold">Custom threshold: <span
+                  id="custom-threshold-val">0.42</span></label>
+              <input type="range" id="custom-threshold" min="0.20" max="0.80" step="0.01" value="0.42"
+                class="range-slider">
+              <div class="slider-marks">
+                <span>0.20</span><span>0.50</span><span>0.80</span>
+              </div>
+              <p class="field-hint">Moving the slider overrides difficulty and sets difficulty to "Custom".</p>
+              <p id="custom-lock-note" class="field-hint hidden">The threshold is locked while a game is in progress. Change it from the lobby.</p>
+            </div>
+            <button id="reset-defaults-btn" class="ghost-btn" style="margin-top:0.5rem">Reset to defaults</button>
+          </details>
+
+          <!-- Quick rules recap -->
+          <details class="settings-advanced" style="margin-top:1rem">
+            <summary class="form-label" style="cursor:pointer">Rules</summary>
+            <ol class="rules-list">
+              <li>On your turn, submit one word related to the current word.</li>
+              <li>Cosine similarity must meet or exceed the difficulty threshold.</li>
+              <li>Words already used in this game (or a simple variation) are banned.</li>
+              <li>Time out or submit an unrelated word → lose a life.</li>
+              <li>You win if all AI players are eliminated first.</li>
+              <li>The game ends the moment you run out of lives.</li>
+            </ol>
+          </details>
+        </div>
+
+        <!-- TAB 2: NLP Lab -->
+        <div id="tab-nlp" class="tab-pane hidden">
+          <!-- Model info -->
+          <div class="lab-info-grid">
+            <div class="lab-info-row"><span class="lab-key">Model</span><span id="lab-model-name"
+                class="lab-val">—</span></div>
+            <div class="lab-info-row"><span class="lab-key">Architecture</span><span class="lab-val">384-dim,
+                mean-pooled, normalized</span></div>
+            <div class="lab-info-row"><span class="lab-key">Runtime</span><span id="lab-runtime"
+                class="lab-val">—</span></div>
+            <div class="lab-info-row"><span class="lab-key">Vocabulary</span><span id="lab-vocab-size"
+                class="lab-val">—</span> words</div>
+            <div class="lab-info-row"><span class="lab-key">Status</span><span id="lab-status" class="lab-val">—</span>
+            </div>
+          </div>
+
+          <!-- Word pair tester -->
+          <div class="lab-section">
+            <h3 class="form-label">Word pair tester</h3>
+            <div class="lab-pair-inputs">
+              <input type="text" id="lab-word-1" class="word-input-field" value="king" placeholder="Word 1"
+                aria-label="Word 1">
+              <span class="lab-vs">vs</span>
+              <input type="text" id="lab-word-2" class="word-input-field" value="queen" placeholder="Word 2"
+                aria-label="Word 2">
+              <button id="lab-compare-btn" class="secondary-btn">Compare</button>
+            </div>
+            <div class="lab-pair-result">
+              <span>Score: <strong id="lab-pair-score">—</strong></span>
+              <span id="lab-pair-verdict" class="verdict-pill">—</span>
+            </div>
+            <div class="lab-bar-wrap">
+              <div class="lab-bar-track">
+                <div id="lab-pair-bar" class="lab-bar-fill" style="width:0%"></div>
+                <div id="lab-threshold-marker" class="lab-threshold-needle"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nearest neighbours -->
+          <div class="lab-section">
+            <h3 class="form-label">Nearest neighbours</h3>
+            <div class="lab-pair-inputs">
+              <input type="text" id="lab-nn-input" class="word-input-field" placeholder="e.g. ocean"
+                aria-label="Find nearest neighbours of this word">
+              <button id="lab-nn-btn" class="secondary-btn">Find top 10</button>
+            </div>
+            <div id="lab-nn-results" class="lab-nn-results"></div>
+          </div>
+
+          <!-- Evaluation -->
+          <div class="lab-section">
+            <h3 class="form-label">Evaluation</h3>
+            <p class="field-hint">Tests the model on 60 labeled word pairs at thresholds from 0.20 to 0.70. Also
+              computes a character-level Jaccard baseline (for comparison only — not used in the game).</p>
+            <button id="eval-run-btn" class="secondary-btn">Run evaluation</button>
+            <div id="eval-results" class="hidden" style="margin-top:1rem">
+              <table class="eval-table">
+                <thead>
+                  <tr>
+                    <th>Threshold</th>
+                    <th>Acc</th>
+                    <th>Prec</th>
+                    <th>Rec</th>
+                    <th>F1</th>
+                    <th class="muted">Baseline Acc</th>
+                    <th class="muted">Baseline F1</th>
+                  </tr>
+                </thead>
+                <tbody id="eval-tbody"></tbody>
+              </table>
+              <p id="eval-conclusion" class="eval-conclusion"></p>
+              <button id="eval-download-btn" class="ghost-btn hidden" style="margin-top:0.5rem">Download CSV</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Toast notifications -->
+  <div id="toast-area" class="toast-area" aria-live="polite" role="status"></div>
+
+  <!-- Scripts (no module; works over file:// and http://) -->
+  <script src="vocab.js"></script>
+  <script src="eval-pairs.js"></script>
+  <script src="script.js"></script>
+</body>
+
+</html>
